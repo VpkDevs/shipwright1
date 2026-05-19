@@ -18,7 +18,7 @@
     "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.94.0",
+    "@anthropic-ai/sdk": "^0.97.0",
     "@google/generative-ai": "^0.14.1",
     "@octokit/rest": "^22.0.1",
     "@upstash/ratelimit": "^2.0.8",
