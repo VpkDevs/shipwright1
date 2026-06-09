@@ -10,6 +10,8 @@ const checkoutSchema = z.object({
   plan: z.enum(["credit", "pro", "proAnnual", "team"]),
   /** Optional repo full name (owner/repo) for metadata */
   repoFullName: z.string().optional(),
+  /** Optional relative path to return users to after checkout */
+  successPath: z.string().optional(),
 });
 
 const PLAN_CONFIG = {
@@ -56,7 +58,7 @@ export const POST = withErrorHandler(async (request: Request) => {
 
   try {
     const body = await request.json();
-    const { plan, repoFullName } = checkoutSchema.parse(body);
+    const { plan, repoFullName, successPath } = checkoutSchema.parse(body);
 
     const planConfig = PLAN_CONFIG[plan];
     const { priceId, mode } = planConfig;
@@ -72,6 +74,12 @@ export const POST = withErrorHandler(async (request: Request) => {
     const customerId = await getOrCreateCustomer(email, name);
     const origin =
       request.headers.get("origin") || process.env.NEXTAUTH_URL || "http://localhost:3000";
+    const returnPath = getSafeCheckoutPath(successPath, "/repos");
+    const successUrl = new URL(returnPath, origin);
+    successUrl.searchParams.set("checkout", "success");
+    successUrl.searchParams.set("plan", plan);
+    const cancelUrl = new URL(returnPath, origin);
+    cancelUrl.searchParams.set("checkout", "cancelled");
 
     logger.info("Creating checkout session", { plan, mode, customerId });
 
@@ -91,8 +99,8 @@ export const POST = withErrorHandler(async (request: Request) => {
         },
       ],
       mode,
-      success_url: `${origin}/repos?checkout=success&plan=${plan}`,
-      cancel_url: `${origin}/repos?checkout=cancelled`,
+      success_url: successUrl.toString(),
+      cancel_url: cancelUrl.toString(),
     };
 
     const checkoutSession = await stripe.checkout.sessions.create(sessionParams);
@@ -115,3 +123,16 @@ export const POST = withErrorHandler(async (request: Request) => {
     throw error;
   }
 });
+
+function getSafeCheckoutPath(path: string | undefined, fallback: string) {
+  if (!path?.startsWith("/") || path.startsWith("//")) {
+    return fallback;
+  }
+
+  try {
+    const url = new URL(path, "http://shipwright.local");
+    return `${url.pathname}${url.search}`;
+  } catch {
+    return fallback;
+  }
+}
