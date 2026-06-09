@@ -18,7 +18,6 @@ type CheckoutPlan = "credit" | "pro";
 
 interface PaymentPrompt {
   message: string;
-  repoFullName: string;
 }
 
 export default function RepoPage() {
@@ -41,6 +40,9 @@ export default function RepoPage() {
   const slug = params?.slug;
   const owner = Array.isArray(slug) && slug.length === 2 ? slug[0] : undefined;
   const repo = Array.isArray(slug) && slug.length === 2 ? slug[1] : undefined;
+  const repoFullName = owner && repo ? `${owner}/${repo}` : "";
+  const repoPath =
+    owner && repo ? `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}` : "/repos";
 
   useEffect(() => {
     if (!owner || !repo) {
@@ -106,7 +108,6 @@ export default function RepoPage() {
         setPaymentPrompt({
           message:
             data?.message || "You need a Ship Credit or Pro subscription to generate artifacts.",
-          repoFullName: `${owner}/${repo}`,
         });
         return;
       }
@@ -134,10 +135,11 @@ export default function RepoPage() {
       const res = await fetch("/api/stripe/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ plan, repoFullName: `${owner}/${repo}` }),
+        body: JSON.stringify({ plan, repoFullName, successPath: repoPath }),
       });
 
       if (res.status === 401) {
+        setCheckoutPlan(null);
         window.location.href = "/api/auth/signin/github";
         return;
       }
@@ -342,6 +344,7 @@ export default function RepoPage() {
             {paymentPrompt && (
               <CheckoutPanel
                 prompt={paymentPrompt}
+                repoFullName={repoFullName}
                 checkoutPlan={checkoutPlan}
                 checkoutError={checkoutError}
                 onCheckout={handleCheckout}
@@ -354,7 +357,7 @@ export default function RepoPage() {
               <div className="work-surface p-8">
                 {paymentPrompt ? (
                   <RevenueMoment
-                    repoFullName={paymentPrompt.repoFullName}
+                    repoFullName={repoFullName}
                     checkoutPlan={checkoutPlan}
                     onCheckout={handleCheckout}
                   />
@@ -430,11 +433,13 @@ export default function RepoPage() {
 
 function CheckoutPanel({
   prompt,
+  repoFullName,
   checkoutPlan,
   checkoutError,
   onCheckout,
 }: {
   prompt: PaymentPrompt;
+  repoFullName: string;
   checkoutPlan: CheckoutPlan | null;
   checkoutError: string;
   onCheckout: (plan: CheckoutPlan) => void;
@@ -442,26 +447,14 @@ function CheckoutPanel({
   return (
     <div className="work-surface border-[color:var(--accent)] p-5">
       <p className="section-label mb-2">Unlock generation</p>
-      <h2 className="mb-2 text-lg font-semibold">{prompt.repoFullName}</h2>
+      <h2 className="mb-2 text-lg font-semibold">{repoFullName}</h2>
       <p className="text-muted mb-4 text-sm">{prompt.message}</p>
-      <div className="grid gap-2">
-        <button
-          type="button"
-          onClick={() => onCheckout("credit")}
-          disabled={checkoutPlan !== null}
-          className="btn-primary w-full py-3"
-        >
-          {checkoutPlan === "credit" ? "Opening checkout..." : "Buy 1 Ship Credit - $5"}
-        </button>
-        <button
-          type="button"
-          onClick={() => onCheckout("pro")}
-          disabled={checkoutPlan !== null}
-          className="btn-secondary w-full py-3"
-        >
-          {checkoutPlan === "pro" ? "Opening checkout..." : "Go Pro - unlimited repos"}
-        </button>
-      </div>
+      <CheckoutActions
+        checkoutPlan={checkoutPlan}
+        creditLabel="Buy 1 Ship Credit - $5"
+        onCheckout={onCheckout}
+        proLabel="Go Pro - unlimited repos"
+      />
       {checkoutError && (
         <p className="mt-3 text-sm text-[color:var(--blocker)]" role="alert">
           {checkoutError}
@@ -505,25 +498,46 @@ function RevenueMoment({
         <p className="mb-4 text-sm text-[color:var(--ink-muted)]">
           One credit is fastest for this repo. Pro makes sense if you are clearing a backlog.
         </p>
-        <div className="grid gap-2">
-          <button
-            type="button"
-            onClick={() => onCheckout("credit")}
-            disabled={checkoutPlan !== null}
-            className="btn-primary w-full py-3"
-          >
-            {checkoutPlan === "credit" ? "Opening checkout..." : "Generate this repo - $5"}
-          </button>
-          <button
-            type="button"
-            onClick={() => onCheckout("pro")}
-            disabled={checkoutPlan !== null}
-            className="btn-secondary w-full py-3"
-          >
-            {checkoutPlan === "pro" ? "Opening checkout..." : "Unlock unlimited - $15/mo"}
-          </button>
-        </div>
+        <CheckoutActions
+          checkoutPlan={checkoutPlan}
+          creditLabel="Generate this repo - $5"
+          onCheckout={onCheckout}
+          proLabel="Unlock unlimited - $15/mo"
+        />
       </div>
+    </div>
+  );
+}
+
+function CheckoutActions({
+  checkoutPlan,
+  creditLabel,
+  proLabel,
+  onCheckout,
+}: {
+  checkoutPlan: CheckoutPlan | null;
+  creditLabel: string;
+  proLabel: string;
+  onCheckout: (plan: CheckoutPlan) => void;
+}) {
+  return (
+    <div className="grid gap-2">
+      <button
+        type="button"
+        onClick={() => onCheckout("credit")}
+        disabled={checkoutPlan !== null}
+        className="btn-primary w-full py-3"
+      >
+        {checkoutPlan === "credit" ? "Opening checkout..." : creditLabel}
+      </button>
+      <button
+        type="button"
+        onClick={() => onCheckout("pro")}
+        disabled={checkoutPlan !== null}
+        className="btn-secondary w-full py-3"
+      >
+        {checkoutPlan === "pro" ? "Opening checkout..." : proLabel}
+      </button>
     </div>
   );
 }
