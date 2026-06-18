@@ -38,6 +38,8 @@ describe("generateDeploymentPlan", () => {
     expect(plan).toContain(baseAnalysis.readinessSummary);
     expect(plan).toContain("Environment variables need documentation");
     expect(plan).toContain("`DATABASE_URL`");
+    expect(plan).toContain("## Fastest Revenue Path");
+    expect(plan).toContain("launch-readiness cleanup");
     expect(plan).toContain("npm run build");
     expect(plan).toContain("npm run start");
   });
@@ -56,6 +58,7 @@ describe("generateDeploymentPlan", () => {
 
     expect(plan).toContain("No deployment issues detected");
     expect(plan).toContain("No environment variable references detected");
+    expect(plan).toContain("deployment activation package");
     expect(plan).toContain("Add a start script before testing production startup");
   });
 });

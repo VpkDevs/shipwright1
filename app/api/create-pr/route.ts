@@ -2,22 +2,28 @@ import { getServerSession } from "next-auth";
 import { z } from "zod";
 import { authOptions } from "@/lib/auth";
 import { getDb } from "@/lib/db";
+import { upsertRepositoryRecord } from "@/lib/db/repositories";
 import { pull_requests } from "@/lib/db/schema";
 import { GithubApiError, RateLimitError, ValidationError } from "@/lib/errors";
 import { GitHubClient } from "@/lib/github";
+import { createLogger } from "@/lib/logger";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { withErrorHandler } from "@/lib/with-error-handler";
+
+const logger = createLogger({ route: "POST /api/create-pr" });
 
 const createPRSchema = z.object({
   owner: z.string().min(1),
   repo: z.string().min(1),
   repoId: z.string().optional(),
-  files: z.array(
-    z.object({
-      path: z.string().min(1),
-      content: z.string(),
-    })
-  ),
+  files: z
+    .array(
+      z.object({
+        path: z.string().min(1),
+        content: z.string(),
+      })
+    )
+    .min(1),
   branchName: z.string().min(1).optional(),
   baseBranch: z.string().min(1).optional(),
 });
@@ -95,19 +101,30 @@ export const POST = withErrorHandler(async (request: Request) => {
     }
 
     // Log PR to DB
-    const db = getDb();
     if (repoId) {
       try {
+        const db = getDb();
+        const repositoryRecordId = await upsertRepositoryRecord({
+          sessionUser: session.user,
+          githubRepoId: repoId,
+          owner,
+          name: repo,
+        });
+
+        if (!repositoryRecordId) {
+          throw new Error("No repository database record was available for PR logging");
+        }
+
         await db.insert(pull_requests).values({
-          repo_id: repoId as any,
+          repo_id: repositoryRecordId,
           pr_number: pr.number,
           pr_url: pr.html_url,
           branch_name: branch,
           status: "open",
           generated_files: files.map((f) => f.path),
         });
-      } catch (_e) {
-        // Silently fail DB insert
+      } catch (error) {
+        logger.warn("Pull request DB write failed", { error, owner, repo, repoId });
       }
     }
 

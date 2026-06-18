@@ -9,62 +9,63 @@ const PLANS = [
     name: "Ship Credit",
     price: "$5",
     period: "one-time",
-    description: "One AI-powered generation. Perfect for a single project.",
+    description: "A low-friction way to ship one repo without starting a subscription.",
     features: [
-      "1 repo generation",
-      "AI README + landing page",
-      "Vercel config + env template",
-      "GitHub PR automation",
+      "Free analysis before purchase",
+      "One repo generation",
+      "Deployment plan and README",
+      "Vercel config and env template",
+      "GitHub pull request payload",
     ],
-    cta: "Buy a Credit",
+    cta: "Buy credit",
     highlighted: false,
   },
   {
     id: "pro",
     name: "Pro",
     price: "$15",
-    period: "/ month",
-    description: "Unlimited generations for active builders.",
+    period: "per month",
+    description: "The default plan for builders clearing a backlog of unfinished projects.",
     features: [
       "Unlimited repo generations",
-      "AI README + landing page",
-      "Vercel config + env template",
-      "GitHub PR automation",
+      "Deployment plan and README",
+      "Vercel config and env template",
+      "GitHub pull request payload",
       "Priority processing",
     ],
-    cta: "Go Pro",
+    cta: "Start Pro",
     highlighted: true,
   },
   {
     id: "proAnnual",
     name: "Pro Annual",
     price: "$150",
-    period: "/ year",
-    description: "Same as Pro — save 2 months.",
+    period: "per year",
+    description: "The monthly plan with two months removed from the bill.",
     features: [
       "Unlimited repo generations",
-      "AI README + landing page",
-      "Vercel config + env template",
-      "GitHub PR automation",
+      "Deployment plan and README",
+      "Vercel config and env template",
+      "GitHub pull request payload",
       "Priority processing",
-      "2 months free vs monthly",
+      "Lower annual cost",
     ],
-    cta: "Go Pro Annual",
+    cta: "Start annual",
     highlighted: false,
   },
   {
     id: "team",
     name: "Team",
     price: "$250",
-    period: "/ month",
-    description: "For teams shipping multiple projects.",
+    period: "per month",
+    description: "Shared shipping capacity for studios, agencies, and internal tool teams.",
     features: [
       "Everything in Pro",
       "Up to 10 team members",
       "Shared repo history",
       "Priority support",
     ],
-    cta: "Get Team",
+    cta: "Start Team",
     highlighted: false,
   },
 ];
@@ -102,96 +103,128 @@ export default function PricingPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
-      <nav className="border-b border-slate-700 bg-slate-800/50 backdrop-blur sticky top-0 z-50">
-        <div className="max-w-6xl mx-auto px-6 py-4 flex justify-between items-center">
-          <Link href="/" className="text-2xl font-bold text-blue-400">
-            Shipwright
-          </Link>
-          <Link href="/repos" className="text-slate-300 hover:text-white transition-colors text-sm">
-            My Repos →
-          </Link>
-        </div>
-      </nav>
+    <main className="min-h-screen">
+      <CommercialNav />
 
-      <div className="max-w-6xl mx-auto px-6 py-16">
-        <div className="text-center mb-14">
-          <h1 className="text-4xl font-bold mb-4">Simple, Honest Pricing</h1>
-          <p className="text-slate-400 text-lg max-w-xl mx-auto">
-            Pay once per repo, or go unlimited. No subscription traps — cancel anytime.
-          </p>
+      <section className="mx-auto max-w-6xl px-6 py-10">
+        <div className="mb-8 grid gap-6 lg:grid-cols-[1fr_360px]">
+          <div>
+            <p className="section-label mb-3">Billing</p>
+            <h1 className="mb-3 max-w-3xl text-4xl font-semibold">
+              Free repo scans. Credits or subscriptions when you generate.
+            </h1>
+            <p className="text-muted max-w-2xl">
+              Analyze first, then choose a one-off Ship Credit or a subscription when you want
+              Shipwright to create deployment artifacts and a PR-ready plan.
+            </p>
+          </div>
+
+          <div className="work-surface p-5">
+            <p className="section-label mb-3">How billing works</p>
+            <ul className="space-y-3 text-sm">
+              <li>Repository analysis is free so you can see blockers before paying.</li>
+              <li>Credits are consumed only after a successful generation.</li>
+              <li>Subscriptions unlock ongoing generation for active builders.</li>
+              <li>Card data is handled by Stripe, not stored by Shipwright.</li>
+            </ul>
+          </div>
         </div>
 
         {error && (
-          <div className="max-w-md mx-auto mb-8 bg-red-900/50 border border-red-700 rounded-lg p-4 text-red-300 text-sm text-center">
+          <div
+            className="mb-6 rounded-md border border-[color:var(--blocker)] bg-red-50 p-4 text-sm text-[color:var(--blocker)]"
+            role="alert"
+          >
             {error}
           </div>
         )}
 
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           {PLANS.map((plan) => (
-            <div
+            <section
               key={plan.id}
-              className={`rounded-xl border p-6 flex flex-col ${
-                plan.highlighted
-                  ? "border-blue-500 bg-blue-950/40 ring-1 ring-blue-500"
-                  : "border-slate-700 bg-slate-800/40"
+              className={`work-surface flex min-h-[430px] flex-col p-5 ${
+                plan.highlighted ? "ring-2 ring-[color:rgb(36_81_90_/_0.32)]" : ""
               }`}
+              aria-label={`${plan.name} pricing plan`}
             >
-              {plan.highlighted && (
-                <div className="text-xs font-semibold text-blue-400 uppercase tracking-wider mb-3">
-                  Most Popular
+              <div className="mb-5 min-h-[132px]">
+                <div className="mb-3 flex items-start justify-between gap-3">
+                  <h2 className="text-xl font-semibold">{plan.name}</h2>
+                  {plan.highlighted && (
+                    <span className="rounded-md bg-[color:rgb(36_81_90_/_0.1)] px-2 py-1 text-xs font-semibold text-[color:var(--accent)]">
+                      Default
+                    </span>
+                  )}
                 </div>
-              )}
-              <h2 className="text-xl font-bold mb-1">{plan.name}</h2>
-              <div className="mb-2">
-                <span className="text-3xl font-extrabold">{plan.price}</span>
-                <span className="text-slate-400 text-sm ml-1">{plan.period}</span>
+                <p className="mb-4 text-sm text-muted">{plan.description}</p>
+                <p>
+                  <span className="text-3xl font-semibold">{plan.price}</span>
+                  <span className="ml-2 text-sm text-muted">{plan.period}</span>
+                </p>
               </div>
-              <p className="text-slate-400 text-sm mb-6">{plan.description}</p>
-              <ul className="space-y-2 mb-8 flex-1">
-                {plan.features.map((f) => (
-                  <li key={f} className="flex items-start gap-2 text-sm text-slate-300">
-                    <span className="text-green-400 mt-0.5 flex-shrink-0">✓</span>
-                    {f}
+
+              <ul className="mb-6 flex-1 space-y-2 text-sm">
+                {plan.features.map((feature) => (
+                  <li key={feature} className="flex gap-2">
+                    <span className="severity-success font-semibold" aria-hidden="true">
+                      +
+                    </span>
+                    <span>{feature}</span>
                   </li>
                 ))}
               </ul>
+
               <button
                 type="button"
                 onClick={() => handleCheckout(plan.id)}
                 disabled={loading !== null}
-                className={`w-full py-2.5 rounded-lg font-semibold text-sm transition-colors disabled:opacity-60 disabled:cursor-not-allowed ${
-                  plan.highlighted
-                    ? "bg-blue-600 hover:bg-blue-500 text-white"
-                    : "bg-slate-700 hover:bg-slate-600 text-slate-100"
-                }`}
+                className={plan.highlighted ? "btn-primary w-full" : "btn-secondary w-full"}
               >
-                {loading === plan.id ? "Redirecting..." : plan.cta}
+                {loading === plan.id ? "Opening Stripe..." : plan.cta}
               </button>
-            </div>
+            </section>
           ))}
         </div>
 
-        <div className="mt-14 text-center space-y-2">
-          <p className="text-slate-500 text-sm">
-            All plans include a 30-day money-back guarantee. Questions?{" "}
-            <a href="mailto:vincekinney1991@gmail.com" className="text-blue-400 hover:underline">
-              Email us
+        <footer className="mt-10 border-t border-[color:var(--line)] pt-5 text-sm text-muted">
+          <p>
+            Questions or refund requests:{" "}
+            <a
+              href="mailto:vincekinney1991@gmail.com"
+              className="font-semibold text-[color:var(--accent)]"
+            >
+              vincekinney1991@gmail.com
             </a>
           </p>
-          <p className="text-slate-600 text-xs">
-            By purchasing, you agree to our{" "}
-            <Link href="/terms" className="text-slate-500 hover:text-slate-300">
-              Terms of Service
+          <p className="mt-2">
+            Purchases are governed by the{" "}
+            <Link href="/terms" className="font-semibold text-[color:var(--accent)]">
+              Terms
             </Link>{" "}
             and{" "}
-            <Link href="/privacy" className="text-slate-500 hover:text-slate-300">
+            <Link href="/privacy" className="font-semibold text-[color:var(--accent)]">
               Privacy Policy
             </Link>
+            .
           </p>
-        </div>
+        </footer>
+      </section>
+    </main>
+  );
+}
+
+function CommercialNav() {
+  return (
+    <nav className="sticky top-0 z-50 border-b border-[color:var(--line)] bg-[color:rgb(244_243_238_/_0.9)] backdrop-blur">
+      <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-6 py-4">
+        <Link href="/" className="text-xl font-semibold">
+          Shipwright
+        </Link>
+        <Link href="/repos" className="btn-secondary">
+          My repos
+        </Link>
       </div>
-    </div>
+    </nav>
   );
 }

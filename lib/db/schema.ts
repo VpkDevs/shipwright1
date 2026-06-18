@@ -1,5 +1,5 @@
 import { relations } from "drizzle-orm";
-import { integer, jsonb, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import { integer, jsonb, pgTable, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
 
 export const users = pgTable("users", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -10,19 +10,25 @@ export const users = pgTable("users", {
   created_at: timestamp("created_at").defaultNow().notNull(),
 });
 
-export const repositories = pgTable("repositories", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  user_id: uuid("user_id")
-    .references(() => users.id)
-    .notNull(),
-  github_repo_id: text("github_repo_id").notNull(),
-  owner: text("owner").notNull(),
-  name: text("name").notNull(),
-  framework: text("framework"),
-  risk_score: integer("risk_score"),
-  last_analyzed_at: timestamp("last_analyzed_at"),
-  created_at: timestamp("created_at").defaultNow().notNull(),
-});
+export const repositories = pgTable(
+  "repositories",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    user_id: uuid("user_id")
+      .references(() => users.id)
+      .notNull(),
+    github_repo_id: text("github_repo_id").notNull(),
+    owner: text("owner").notNull(),
+    name: text("name").notNull(),
+    framework: text("framework"),
+    risk_score: integer("risk_score"),
+    last_analyzed_at: timestamp("last_analyzed_at"),
+    created_at: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex("repositories_user_github_repo_unique").on(table.user_id, table.github_repo_id),
+  ]
+);
 
 export const pull_requests = pgTable("pull_requests", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -47,6 +53,16 @@ export const deployments = pgTable("deployments", {
   status: text("status").default("pending").notNull(),
   deployed_at: timestamp("deployed_at"),
   created_at: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const stripe_events = pgTable("stripe_events", {
+  id: text("id").primaryKey(),
+  type: text("type").notNull(),
+  status: text("status").default("processing").notNull(),
+  error: text("error"),
+  processed_at: timestamp("processed_at"),
+  created_at: timestamp("created_at").defaultNow().notNull(),
+  updated_at: timestamp("updated_at").defaultNow().notNull(),
 });
 
 // Relationships

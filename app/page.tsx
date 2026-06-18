@@ -44,11 +44,12 @@ export default function Home() {
           <div className="mb-8 max-w-3xl">
             <p className="section-label mb-3">Workbench</p>
             <h1 className="mb-3 text-4xl font-semibold text-[color:var(--ink)]">
-              Deployment diagnosis for the repos you have not touched in months.
+              Pick a repo. Get the blockers, generated artifacts, and PR payload.
             </h1>
             <p className="text-muted text-lg">
-              Shipwright turns a repository into a readiness report, generated artifacts, and a
-              reviewable pull request.
+              Shipwright gives every unfinished project the same repeatable launch path: inspect the
+              evidence, generate the missing files, then review the pull request before it touches
+              production.
             </p>
           </div>
 
@@ -60,14 +61,14 @@ export default function Home() {
               <div className="mb-12 flex items-start justify-between gap-6">
                 <div>
                   <p className="section-label mb-2">Primary queue</p>
-                  <h2 className="text-2xl font-semibold">Analyze repositories</h2>
+                  <h2 className="text-2xl font-semibold">Start a free repo scan</h2>
                 </div>
                 <span className="rounded-md border border-[color:var(--line)] px-3 py-1 text-sm font-semibold">
                   Open
                 </span>
               </div>
               <div className="grid gap-3 sm:grid-cols-3">
-                {["Detect stack", "Classify blockers", "Generate PR"].map((label, index) => (
+                {["Detect facts", "Rank blockers", "Generate PR"].map((label, index) => (
                   <div key={label} className="border-t border-[color:var(--line)] pt-3">
                     <p className="section-label mb-1">{String(index + 1).padStart(2, "0")}</p>
                     <p className="font-semibold">{label}</p>
@@ -96,26 +97,39 @@ export default function Home() {
 
       <section className="mx-auto grid max-w-6xl gap-10 px-6 py-16 lg:grid-cols-[1fr_440px] lg:items-start">
         <div className="max-w-3xl">
-          <p className="section-label mb-4">Shipwright</p>
+          <p className="section-label mb-4">Free scan. Paid generation.</p>
           <h1 className="mb-6 text-5xl font-semibold leading-[1.02] text-[color:var(--ink)]">
-            Deployment readiness for solo builders with unfinished repos.
+            Turn a neglected GitHub repo into a reviewable deployment PR.
           </h1>
           <p className="text-muted mb-8 max-w-2xl text-xl">
-            Connect GitHub, select a repository, and get a concrete deployment diagnosis with
-            generated files ready for review.
+            Shipwright scans the repo, shows exactly what blocks launch, then generates the
+            deployment plan, environment template, config, README updates, and PR body needed to
+            move from "someday" to reviewable.
           </p>
           <div className="flex flex-col gap-3 sm:flex-row">
             <a href="/api/auth/signin/github" className="btn-primary px-5 py-3">
-              Sign in with GitHub
+              Scan a repo free
             </a>
-            <a href="#system" className="btn-secondary px-5 py-3">
-              View workflow
-            </a>
+            <Link href="/pricing" className="btn-secondary px-5 py-3">
+              Credits and subscriptions
+            </Link>
+          </div>
+
+          <div className="mt-10 grid gap-3 border-y border-[color:var(--line)] py-5 sm:grid-cols-3">
+            {VALUE_STEPS.map((step) => (
+              <div key={step.label}>
+                <p className="section-label mb-2">{step.label}</p>
+                <p className="text-sm font-semibold">{step.value}</p>
+              </div>
+            ))}
           </div>
         </div>
 
         <div className="work-surface p-5">
-          <p className="section-label mb-4">Readiness output</p>
+          <p className="section-label mb-4">What changes</p>
+          <h2 className="mb-4 text-2xl font-semibold">
+            From unknown launch risk to a concrete PR.
+          </h2>
           <div className="space-y-3">
             <SignalRow severity="blocker" title="Missing build script" detail="package.json" />
             <SignalRow
@@ -128,8 +142,8 @@ export default function Home() {
           <div className="mt-6 rounded-md bg-[color:var(--code-bg)] p-4 text-sm text-[color:var(--code-fg)]">
             <p className="mb-2 font-semibold">SHIPWRIGHT_DEPLOYMENT_PLAN.md</p>
             <p className="text-[color:rgb(215_226_223_/_0.78)]">
-              Readiness summary, deployment issues, environment variables, verification commands,
-              and hosting notes.
+              Evidence-backed blockers, generated files, verification commands, and PR notes a
+              future maintainer can understand.
             </p>
           </div>
         </div>
@@ -140,12 +154,15 @@ export default function Home() {
           {[
             [
               "Repository scan",
-              "Framework, package manager, lockfile, scripts, Docker, env usage.",
+              "Detects framework, package manager, lockfile, scripts, Docker, and env usage.",
             ],
-            ["Deployment doctor", "Blockers, warnings, informational findings, and risk score."],
             [
-              "Generated PR",
-              "Deployment plan, environment template, config, docs, and review notes.",
+              "Launch diagnosis",
+              "Separates hard blockers from warnings and labels inferred findings.",
+            ],
+            [
+              "Generation package",
+              "Creates the deployment plan, env template, config, docs, and pull request body.",
             ],
           ].map(([title, detail], index) => (
             <div key={title} className="grid gap-3 p-5 md:grid-cols-[96px_1fr]">
@@ -162,6 +179,12 @@ export default function Home() {
   );
 }
 
+const VALUE_STEPS = [
+  { label: "Input", value: "A repo you have not shipped yet" },
+  { label: "Diagnosis", value: "Blockers ranked by launch impact" },
+  { label: "Output", value: "A PR package ready for review" },
+];
+
 function TopNav({ signedOut = false }: { signedOut?: boolean }) {
   return (
     <nav className="border-b border-[color:var(--line)] bg-[color:rgb(244_243_238_/_0.86)] backdrop-blur">
@@ -170,7 +193,17 @@ function TopNav({ signedOut = false }: { signedOut?: boolean }) {
           Shipwright
         </Link>
         {signedOut ? (
-          <p className="text-muted text-sm">Deployment doctor for solo builders</p>
+          <div className="flex items-center gap-2">
+            <Link
+              href="/pricing"
+              className="text-muted text-sm font-semibold hover:text-[color:var(--ink)]"
+            >
+              Pricing
+            </Link>
+            <a href="/api/auth/signin/github" className="btn-secondary">
+              Sign in
+            </a>
+          </div>
         ) : (
           <div className="flex items-center gap-2">
             <Link href="/repos" className="btn-secondary">

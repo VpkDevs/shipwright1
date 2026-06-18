@@ -11,7 +11,7 @@ export interface AnalysisEnrichment {
 }
 
 export async function enrichAnalysisWithGemini(
-  packageJson: Record<string, unknown>,
+  packageJson: unknown,
   fileTree: string,
   readme?: string,
   detectedFramework?: string
@@ -21,7 +21,7 @@ export async function enrichAnalysisWithGemini(
 
 Package.json dependencies:
 \`\`\`json
-${JSON.stringify(packageJson, null, 2)}
+${JSON.stringify(packageJson ?? {}, null, 2)}
 \`\`\`
 
 File tree:

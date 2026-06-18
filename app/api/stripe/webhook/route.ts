@@ -1,4 +1,9 @@
 import type Stripe from "stripe";
+import {
+  markStripeEventFailed,
+  markStripeEventProcessed,
+  reserveStripeEvent,
+} from "@/lib/db/stripe-events";
 import { createLogger } from "@/lib/logger";
 import { addShipCredits, stripe } from "@/lib/stripe";
 
@@ -17,12 +22,32 @@ export async function POST(request: Request) {
     return Response.json({ error: "Webhook signature missing" }, { status: 400 });
   }
 
+  const body = await request.text();
+  let event: Stripe.Event;
+
   try {
-    const body = await request.text();
-    const event = stripe.webhooks.constructEvent(body, signature, webhookSecret);
+    event = stripe.webhooks.constructEvent(body, signature, webhookSecret);
+  } catch (error) {
+    logger.error("Webhook signature verification failed", { error });
+    return Response.json({ error: "Invalid signature" }, { status: 400 });
+  }
 
-    logger.info("Webhook event received", { type: event.type, id: event.id });
+  logger.info("Webhook event received", { type: event.type, id: event.id });
 
+  let reserved = false;
+  try {
+    reserved = await reserveStripeEvent(event.id, event.type);
+  } catch (error) {
+    logger.error("Stripe event reservation failed", { error, eventId: event.id, type: event.type });
+    return Response.json({ error: "Webhook processing failed" }, { status: 500 });
+  }
+
+  if (!reserved) {
+    logger.info("Duplicate Stripe event ignored", { eventId: event.id, type: event.type });
+    return Response.json({ received: true, duplicate: true }, { status: 200 });
+  }
+
+  try {
     // Handle checkout completion (one-time payment)
     if (event.type === "checkout.session.completed") {
       const session = event.data.object as Stripe.Checkout.Session;
@@ -56,10 +81,22 @@ export async function POST(request: Request) {
       });
     }
 
+    await markStripeEventProcessed(event.id).catch((markProcessedError) => {
+      logger.error("Stripe event processed marker failed", {
+        error: markProcessedError,
+        eventId: event.id,
+      });
+    });
     return Response.json({ received: true }, { status: 200 });
   } catch (error) {
-    logger.error("Webhook signature verification failed", { error });
-    return Response.json({ error: "Invalid signature" }, { status: 400 });
+    logger.error("Webhook processing failed", { error, eventId: event.id, type: event.type });
+    await markStripeEventFailed(event.id, error).catch((markFailedError) => {
+      logger.error("Stripe event failure marker failed", {
+        error: markFailedError,
+        eventId: event.id,
+      });
+    });
+    return Response.json({ error: "Webhook processing failed" }, { status: 500 });
   }
 }
 
@@ -79,18 +116,11 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
 
   // For one-time credit purchases, add the credit
   if (planType === "credit" && customerId && typeof customerId === "string") {
-    try {
-      const newCredits = await addShipCredits(customerId, 1);
-      logger.info("Credit added to customer", {
-        customerId,
-        newCredits,
-      });
-    } catch (error) {
-      logger.error("Failed to add credit after checkout", {
-        customerId,
-        error,
-      });
-    }
+    const newCredits = await addShipCredits(customerId, 1);
+    logger.info("Credit added to customer", {
+      customerId,
+      newCredits,
+    });
   }
 
   // For subscriptions, they're automatically activated by Stripe

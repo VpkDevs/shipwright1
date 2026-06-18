@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { type KeyboardEvent, useEffect, useMemo, useState } from "react";
 import type { DeploymentIssue, GeneratedContent, RepoAnalysis } from "@/types";
 
@@ -18,6 +18,7 @@ type PreviewTab = (typeof PREVIEW_TABS)[number];
 export default function RepoPage() {
   const router = useRouter();
   const params = useParams();
+  const searchParams = useSearchParams();
   const [analysis, setAnalysis] = useState<RepoAnalysis | null>(null);
   const [generated, setGenerated] = useState<GeneratedContent | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -32,6 +33,7 @@ export default function RepoPage() {
   const slug = params?.slug;
   const owner = Array.isArray(slug) && slug.length === 2 ? slug[0] : undefined;
   const repo = Array.isArray(slug) && slug.length === 2 ? slug[1] : undefined;
+  const repoId = searchParams.get("repoId") ?? undefined;
 
   useEffect(() => {
     if (!owner || !repo) {
@@ -45,7 +47,7 @@ export default function RepoPage() {
         const res = await fetch("/api/analyze", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ owner, repo }),
+          body: JSON.stringify({ owner, repo, repoId }),
         });
 
         if (!res.ok) {
@@ -67,7 +69,7 @@ export default function RepoPage() {
     };
 
     analyze();
-  }, [owner, repo, router]);
+  }, [owner, repo, repoId, router]);
 
   const issueCounts = useMemo(() => {
     const issues = analysis?.deploymentIssues ?? [];
@@ -87,7 +89,7 @@ export default function RepoPage() {
       const res = await fetch("/api/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ owner, repo }),
+        body: JSON.stringify({ owner, repo, repoId }),
       });
 
       if (res.status === 402) {
@@ -176,7 +178,7 @@ export default function RepoPage() {
       const res = await fetch("/api/create-pr", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ owner, repo, files }),
+        body: JSON.stringify({ owner, repo, repoId, files }),
       });
 
       if (!res.ok) {
