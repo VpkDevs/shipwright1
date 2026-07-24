@@ -17,3 +17,14 @@ tsc-errors.txt
 tsc-output.txt
 .data/
 .tmp-vitest-report*.json
+
+# appended by publish script
+!.env.example
+out/
+.turbo/
+.cache/
+.venv/
+venv/
+__pycache__/
+.pytest_cache/
+*.pyc

@@ -1,24 +1,24 @@
+import { MarketingCapture } from "@/components/MarketingCapture";
+// SEO defaults for the entire site
+import { defaultMetadata, metadataBase, siteName } from "@/lib/seo";
+import { ToastProvider } from "@/lib/toast";
 import type { Metadata } from "next";
 import "./globals.css";
 
-// SEO defaults for the entire site
-import { defaultMetadata, metadataBase, siteName } from "@/lib/seo";
-
 export const metadata: Metadata = defaultMetadata;
-
-import { ToastProvider } from "@/lib/toast";
 
 export default function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const siteUrl = metadataBase.toString();
   const orgSchema = {
     "@context": "https://schema.org",
     "@type": "Organization",
     name: siteName,
-    url: metadataBase.toString(),
-    logo: `${metadataBase.toString()}/logo.svg`,
+    url: siteUrl,
+    logo: `${siteUrl}/logo.svg`,
   };
 
   return (
@@ -30,6 +30,7 @@ export default function RootLayout({
       </head>
       <body>
         <ToastProvider>
+          <MarketingCapture />
           {children}
           <script type="application/ld+json">{JSON.stringify(orgSchema)}</script>
         </ToastProvider>

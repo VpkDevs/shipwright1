@@ -1,6 +1,7 @@
 import { authOptions } from "@/lib/auth";
 import { createLogger, generateRequestId } from "@/lib/logger";
-import { getOrCreateCustomer, getShipCredits, hasActiveProSubscription } from "@/lib/stripe";
+import { getTotalShipCredits } from "@/lib/ship-credits";
+import { getOrCreateCustomer, hasActiveProSubscription } from "@/lib/stripe";
 import type { PaymentStatus } from "@/types";
 import { getServerSession } from "next-auth";
 
@@ -33,7 +34,7 @@ export async function GET() {
 
     const [isPro, credits] = await Promise.all([
       hasActiveProSubscription(customerId),
-      getShipCredits(customerId),
+      getTotalShipCredits(customerId, email),
     ]);
 
     const status: PaymentStatus = {

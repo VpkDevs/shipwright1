@@ -25,6 +25,7 @@ export const LoadingButton = forwardRef<HTMLButtonElement, LoadingButtonProps>(
       fullWidth = false,
       disabled,
       className = "",
+      type = "button",
       ...props
     },
     ref
@@ -69,6 +70,7 @@ export const LoadingButton = forwardRef<HTMLButtonElement, LoadingButtonProps>(
     return (
       <button
         ref={ref}
+        type={type}
         disabled={disabled || isLoading}
         className={`
           ${baseClasses}
@@ -99,7 +101,19 @@ interface IconButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 export const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(
-  ({ icon, label, variant = "ghost", size = "md", disabled, className = "", ...props }, ref) => {
+  (
+    {
+      icon,
+      label,
+      variant = "ghost",
+      size = "md",
+      disabled,
+      className = "",
+      type = "button",
+      ...props
+    },
+    ref
+  ) => {
     const baseClasses = `
       inline-flex items-center justify-center
       rounded-lg transition-colors duration-200
@@ -124,6 +138,7 @@ export const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(
     return (
       <button
         ref={ref}
+        type={type}
         disabled={disabled}
         className={`${baseClasses} ${variantClasses[variant]} ${sizeClasses[size]} ${className}`}
         aria-label={label}

@@ -1,16 +1,24 @@
+import { type TemplatePackId, getPackCopy } from "@/lib/template-packs";
 import type { RepoAnalysis } from "@/types";
 
 export function generateLandingPage(
   repoName: string,
   analysis: RepoAnalysis,
-  description?: string
+  description?: string,
+  templatePack: TemplatePackId = "default"
 ): string {
+  const pack = getPackCopy(templatePack, repoName, analysis);
+  const heroTitle = pack.landingHeadline.replace(/</g, "&lt;");
+  const heroSub = (description || pack.landingSubhead).replace(/</g, "&lt;");
+  const ctaPrimary = pack.landingCtaPrimary.replace(/</g, "&lt;");
+  const ctaSecondary = pack.landingCtaSecondary.replace(/</g, "&lt;");
+
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>${repoName}</title>
+  <title>${heroTitle}</title>
   <style>
     * {
       margin: 0;
@@ -200,7 +208,7 @@ export function generateLandingPage(
 <body>
   <header>
     <nav>
-      <h1>${repoName}</h1>
+      <h1>${heroTitle}</h1>
       <div>
         <a href="#features">Features</a>
         <a href="#tech">Tech Stack</a>
@@ -209,11 +217,11 @@ export function generateLandingPage(
   </header>
 
   <section class="hero">
-    <h1>${repoName}</h1>
-    <p>${description || analysis.description}</p>
+    <h1>${heroTitle}</h1>
+    <p>${heroSub}</p>
     <div class="cta-buttons">
-      <a href="https://github.com" class="btn btn-primary">View on GitHub</a>
-      <a href="#" class="btn btn-secondary">Get Started</a>
+      <a href="https://github.com" class="btn btn-primary">${ctaPrimary}</a>
+      <a href="#" class="btn btn-secondary">${ctaSecondary}</a>
     </div>
   </section>
 

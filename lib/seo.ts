@@ -5,6 +5,7 @@ export const siteDescription = "Turn dormant repos into live products in minutes
 
 // NOTE: metadataBase should reflect the actual production domain. Update as needed.
 export const metadataBase = new URL("https://shipwright.example.com");
+const siteOrigin = metadataBase.toString();
 
 export const defaultMetadata: Metadata = {
   title: siteName,
@@ -24,7 +25,7 @@ export const defaultMetadata: Metadata = {
     type: "website",
     title: siteName,
     description: siteDescription,
-    url: metadataBase.toString(),
+    url: siteOrigin,
     siteName,
     images: [
       {
@@ -51,7 +52,7 @@ export const defaultMetadata: Metadata = {
 export function makeRepoMetadata(repoPath: string): Metadata {
   const title = `${repoPath} – ${siteName}`;
   const description = `Analyze the GitHub repository ${repoPath} and generate deployment-ready configs, README, and landing pages.`;
-  const url = `${metadataBase.toString()}/repos/${repoPath}`;
+  const url = `${siteOrigin}/repos/${repoPath}`;
 
   return {
     ...defaultMetadata,

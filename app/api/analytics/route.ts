@@ -1,3 +1,4 @@
+import { ANALYTICS_EVENT_NAMES } from "@/lib/analytics-events";
 import { appendAnalyticsEvent, readAnalyticsEvents } from "@/lib/analytics-store";
 import { authOptions } from "@/lib/auth";
 import { createLogger, generateRequestId } from "@/lib/logger";
@@ -8,23 +9,16 @@ import { z } from "zod";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const analyticsEventNames = [
-  "homepage_cta_clicked",
-  "pricing_cta_clicked",
-  "pricing_plan_selected",
-  "repo_paywall_clicked",
-  "checkout_started",
-] as const;
-
 const analyticsSchema = z.object({
-  name: z.enum(analyticsEventNames),
+  name: z.enum(ANALYTICS_EVENT_NAMES),
   properties: z.record(z.union([z.string(), z.number(), z.boolean(), z.null()])).optional(),
 });
 
 const analyticsQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(500).default(100),
-  name: z.enum(analyticsEventNames).optional(),
+  name: z.enum(ANALYTICS_EVENT_NAMES).optional(),
 });
+const MAX_PROPERTY_KEYS = 50;
 
 export async function GET(request: Request) {
   const requestId = generateRequestId();
@@ -71,8 +65,28 @@ export async function POST(request: Request) {
 
   try {
     const session = await getServerSession(authOptions);
-    const body = await request.json();
+    let body: unknown;
+    try {
+      body = await request.json();
+    } catch (error) {
+      logger.warn("Analytics capture invalid JSON", {
+        error: error instanceof Error ? error.message : String(error),
+      });
+      return Response.json({ ok: false, requestId, error: "Invalid JSON body" }, { status: 400 });
+    }
+
     const payload = analyticsSchema.parse(body);
+    if (payload.properties && Object.keys(payload.properties).length > MAX_PROPERTY_KEYS) {
+      return Response.json(
+        {
+          ok: false,
+          requestId,
+          error: `Too many analytics properties (max ${MAX_PROPERTY_KEYS})`,
+        },
+        { status: 400 }
+      );
+    }
+
     const event = {
       id: crypto.randomUUID(),
       timestamp: new Date().toISOString(),
@@ -92,14 +106,14 @@ export async function POST(request: Request) {
 
     logger.info("Analytics event", {
       event: payload.name,
-      properties: payload.properties,
+      propertyCount: payload.properties ? Object.keys(payload.properties).length : 0,
       user: event.userEmail,
       eventId: event.id,
     });
 
-    return Response.json({ ok: true, eventId: event.id });
+    return Response.json({ ok: true, eventId: event.id, requestId });
   } catch (error) {
     logger.error("Analytics capture error", undefined, error);
-    return Response.json({ ok: false }, { status: 400 });
+    return Response.json({ ok: false, requestId }, { status: 400 });
   }
 }

@@ -1,5 +1,5 @@
-// Simple in-memory rate limiter for API routes
-// For production, consider using Upstash Redis or similar
+import { getRedis } from "@/lib/redis";
+import { Ratelimit } from "@upstash/ratelimit";
 
 interface RateLimitEntry {
   count: number;
@@ -8,23 +8,38 @@ interface RateLimitEntry {
 
 const rateLimitStore = new Map<string, RateLimitEntry>();
 
-// Rate limit configurations (requests per minute)
 export const RATE_LIMITS = {
   analyze: { maxRequests: 10, windowSeconds: 60 },
   generate: { maxRequests: 5, windowSeconds: 60 },
   agent: { maxRequests: 3, windowSeconds: 60 },
   repos: { maxRequests: 30, windowSeconds: 60 },
   auth: { maxRequests: 5, windowSeconds: 60 },
+  demo: { maxRequests: 20, windowSeconds: 60 },
   default: { maxRequests: 20, windowSeconds: 60 },
 } as const;
 
 export type RateLimitType = keyof typeof RATE_LIMITS;
 
-/**
- * Check if request should be rate limited
- * Returns { allowed: true, remaining, reset } if allowed
- * Returns { allowed: false, remaining: 0, reset } if blocked
- */
+const limiterCache = new Map<string, Ratelimit>();
+
+function getUpstashLimiter(type: RateLimitType): Ratelimit | null {
+  const redis = getRedis();
+  if (!redis) return null;
+
+  const existing = limiterCache.get(type);
+  if (existing) return existing;
+
+  const config = RATE_LIMITS[type] ?? RATE_LIMITS.default;
+  const limiter = new Ratelimit({
+    redis,
+    limiter: Ratelimit.slidingWindow(config.maxRequests, `${config.windowSeconds} s`),
+    analytics: false,
+    prefix: `@shipwright/ratelimit/${type}`,
+  });
+  limiterCache.set(type, limiter);
+  return limiter;
+}
+
 export function checkRateLimit(
   key: string,
   type: RateLimitType = "default"
@@ -36,7 +51,6 @@ export function checkRateLimit(
   const entry = rateLimitStore.get(key);
 
   if (!entry || now > entry.resetTime) {
-    // New window
     const resetTime = now + windowMs;
     rateLimitStore.set(key, { count: 1, resetTime });
     return {
@@ -47,7 +61,6 @@ export function checkRateLimit(
   }
 
   if (entry.count >= config.maxRequests) {
-    // Rate limited
     return {
       allowed: false,
       remaining: 0,
@@ -55,7 +68,6 @@ export function checkRateLimit(
     };
   }
 
-  // Increment count
   entry.count++;
   return {
     allowed: true,
@@ -65,8 +77,24 @@ export function checkRateLimit(
 }
 
 /**
- * Get client IP from request headers
+ * Prefer Upstash sliding-window limits when Redis is configured; otherwise in-memory fallback.
  */
+export async function checkRateLimitAsync(
+  key: string,
+  type: RateLimitType = "default"
+): Promise<{ allowed: boolean; remaining: number; reset: number }> {
+  const limiter = getUpstashLimiter(type);
+  if (limiter) {
+    const result = await limiter.limit(key);
+    return {
+      allowed: result.success,
+      remaining: result.remaining,
+      reset: result.reset,
+    };
+  }
+  return checkRateLimit(key, type);
+}
+
 export function getClientIp(headers: Headers): string {
   const forwarded = headers.get("x-forwarded-for");
   if (forwarded) {
@@ -81,19 +109,8 @@ export function getClientIp(headers: Headers): string {
   return "unknown";
 }
 
-/**
- * Create rate limit key from request
- */
-export function createRateLimitKey(headers: Headers, type: RateLimitType): string {
-  const ip = getClientIp(headers);
-  return `${type}:${ip}`;
-}
-
-/**
- * Rate limit error response
- */
 export function rateLimitResponse(remaining: number, reset: number) {
-  const retryAfter = Math.ceil((reset - Date.now()) / 1000);
+  const retryAfter = Math.max(1, Math.ceil((reset - Date.now()) / 1000));
 
   return new Response(
     JSON.stringify({
@@ -113,16 +130,13 @@ export function rateLimitResponse(remaining: number, reset: number) {
   );
 }
 
-/**
- * Middleware helper to apply rate limiting to API routes
- */
 export async function withRateLimit(
   headers: Headers,
   type: RateLimitType,
   handler: () => Promise<Response>
 ): Promise<Response> {
   const key = createRateLimitKey(headers, type);
-  const result = checkRateLimit(key, type);
+  const result = await checkRateLimitAsync(key, type);
 
   if (!result.allowed) {
     const response = rateLimitResponse(result.remaining, result.reset);
@@ -131,14 +145,17 @@ export async function withRateLimit(
 
   const response = await handler();
 
-  // Add rate limit headers to response
   response.headers.set("X-RateLimit-Remaining", String(result.remaining));
   response.headers.set("X-RateLimit-Reset", String(Math.ceil(result.reset / 1000)));
 
   return response;
 }
 
-// Cleanup old entries periodically
+export function createRateLimitKey(headers: Headers, type: RateLimitType): string {
+  const ip = getClientIp(headers);
+  return `${type}:${ip}`;
+}
+
 if (typeof setInterval !== "undefined") {
   setInterval(() => {
     const now = Date.now();
@@ -147,5 +164,5 @@ if (typeof setInterval !== "undefined") {
         rateLimitStore.delete(key);
       }
     }
-  }, 60 * 1000); // Cleanup every minute
+  }, 60 * 1000);
 }

@@ -1,11 +1,15 @@
 import { getInstallCommand, getRunScriptCommand } from "@/lib/package-manager";
+import { type TemplatePackId, getPackCopy } from "@/lib/template-packs";
 import type { RepoAnalysis } from "@/types";
 
 export function generateReadme(
   repoName: string,
   analysis: RepoAnalysis,
-  description?: string
+  description?: string,
+  templatePack: TemplatePackId = "default"
 ): string {
+  const packCopy = getPackCopy(templatePack, repoName, analysis);
+
   const installCommand = getInstallCommand(analysis.packageManager);
   const devCommand = getRunScriptCommand(analysis.packageManager, "dev");
   const buildCommand = getRunScriptCommand(analysis.packageManager, "build");
@@ -15,6 +19,12 @@ export function generateReadme(
     `# ${repoName}`,
     "",
     description || analysis.description,
+    "",
+    "## Positioning",
+    "",
+    packCopy.readmeTagline,
+    "",
+    `_Audience: ${packCopy.readmeAudience}_`,
     "",
     "## Features",
     "",

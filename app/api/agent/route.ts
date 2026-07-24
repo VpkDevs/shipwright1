@@ -1,12 +1,8 @@
 import { runOrchestrator } from "@/lib/agents/orchestrator";
 import { authOptions } from "@/lib/auth";
 import { createLogger, generateRequestId } from "@/lib/logger";
-import {
-  consumeShipCredit,
-  getOrCreateCustomer,
-  getShipCredits,
-  hasActiveProSubscription,
-} from "@/lib/stripe";
+import { consumeOneShipCredit, getTotalShipCredits } from "@/lib/ship-credits";
+import { getOrCreateCustomer, hasActiveProSubscription } from "@/lib/stripe";
 import { getServerSession } from "next-auth";
 import { z } from "zod";
 
@@ -59,7 +55,7 @@ export async function POST(request: Request) {
     customerId = await getOrCreateCustomer(email, user.name || "");
     [isPro, credits] = await Promise.all([
       hasActiveProSubscription(customerId),
-      getShipCredits(customerId),
+      getTotalShipCredits(customerId, email),
     ]);
   } catch (err) {
     logger.error("Payment check failed", { email }, err);
@@ -134,7 +130,7 @@ export async function POST(request: Request) {
     // ── Consume Credit (only after successful generation) ─────────────────
     if (!isPro) {
       try {
-        await consumeShipCredit(customerId);
+        await consumeOneShipCredit(customerId, email);
       } catch (err) {
         // Log but don't fail — user already got their result
         logger.error("Failed to consume ship credit", { customerId }, err);

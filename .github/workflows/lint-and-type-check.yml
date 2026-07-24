@@ -20,7 +20,7 @@ jobs:
         run: bun install
 
       - name: Biome check
-        run: bunx `@biomejs/biome` ci
+        run: bunx @biomejs/biome ci
 
   type-check:
     name: TypeScript Type Check

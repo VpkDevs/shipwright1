@@ -5,7 +5,8 @@ import { generateLandingPage } from "@/lib/generators/landing";
 import { generateReadme } from "@/lib/generators/readme";
 import { generatePackageJsonScripts, generateVercelJsonFile } from "@/lib/generators/vercel-config";
 import { createLogger, generateRequestId } from "@/lib/logger";
-import { checkRateLimit, getClientIp, rateLimitResponse } from "@/lib/rate-limit";
+import { checkRateLimitAsync, getClientIp, rateLimitResponse } from "@/lib/rate-limit";
+import { normalizeTemplatePack } from "@/lib/template-packs";
 import { getServerSession } from "next-auth";
 import { z } from "zod";
 
@@ -13,6 +14,7 @@ const generateSchema = z.object({
   owner: z.string().trim().min(1).max(100),
   repo: z.string().trim().min(1).max(100),
   description: z.string().trim().max(500).optional(),
+  templatePack: z.string().trim().max(32).optional(),
 });
 
 /**
@@ -33,7 +35,7 @@ export async function POST(request: Request) {
   const headers = request.headers;
   const clientIp = getClientIp(headers);
   const rateLimitKey = `generate:${clientIp}`;
-  const rateLimitResult = checkRateLimit(rateLimitKey, "generate");
+  const rateLimitResult = await checkRateLimitAsync(rateLimitKey, "generate");
 
   if (!rateLimitResult.allowed) {
     logger.warn("Generate request rate limited", { clientIp });
@@ -58,7 +60,8 @@ export async function POST(request: Request) {
       return Response.json({ error: "Invalid JSON body" }, { status: 400 });
     }
 
-    const { owner, repo, description } = generateSchema.parse(body);
+    const { owner, repo, description, templatePack: templatePackRaw } = generateSchema.parse(body);
+    const templatePack = normalizeTemplatePack(templatePackRaw);
 
     const token = (session.user as { accessToken?: string }).accessToken;
     if (!token) {
@@ -75,8 +78,9 @@ export async function POST(request: Request) {
       vercelJson: generateVercelJsonFile(analysis),
       packageJsonScripts: generatePackageJsonScripts(analysis),
       envTemplate: generateEnvTemplate(analysis),
-      readme: generateReadme(repo, analysis, description),
-      landingPage: generateLandingPage(repo, analysis, description),
+      readme: generateReadme(repo, analysis, description, templatePack),
+      landingPage: generateLandingPage(repo, analysis, description, templatePack),
+      templatePack,
       /** Flag so the UI knows this is template-based, not AI */
       isAI: false,
     };
