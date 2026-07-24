@@ -1,12 +1,19 @@
 import type { DeploymentIssue, RepoAnalysis } from "@/types";
 import { GitHubClient } from "./github";
 
-interface PackageJson {
+export interface PackageJson {
   dependencies?: Record<string, string>;
   devDependencies?: Record<string, string>;
   scripts?: Record<string, string>;
   packageManager?: string;
   engines?: Record<string, string>;
+}
+
+export interface RepoAnalysisContext {
+  packageJson: PackageJson | null;
+  fileTree: string[];
+  readme: string | null;
+  dependencies: string[];
 }
 
 const SOURCE_FILE_PATTERN = /\.(ts|tsx|js|jsx|mjs|cjs|vue|svelte|astro)$/;
@@ -99,6 +106,27 @@ export class RepoAnalyzer {
     };
   }
 
+  async getAnalysisContext(owner: string, repo: string): Promise<RepoAnalysisContext> {
+    const [packageJson, fileTree, readme] = await Promise.all([
+      this.getPackageJson(owner, repo),
+      this.getFileList(owner, repo),
+      this.getReadme(owner, repo),
+    ]);
+    const dependencies = packageJson
+      ? Object.keys({
+          ...(packageJson.dependencies ?? {}),
+          ...(packageJson.devDependencies ?? {}),
+        }).sort()
+      : [];
+
+    return {
+      packageJson,
+      fileTree,
+      readme,
+      dependencies,
+    };
+  }
+
   private async getPackageJson(owner: string, repo: string): Promise<PackageJson | null> {
     try {
       const content = await this.client.getFileContent(owner, repo, "package.json");
@@ -107,6 +135,15 @@ export class RepoAnalyzer {
     } catch {
       return null;
     }
+  }
+
+  private async getReadme(owner: string, repo: string): Promise<string | null> {
+    for (const path of ["README.md", "README.mdx", "README.txt", "readme.md"]) {
+      const content = await this.client.getFileContent(owner, repo, path);
+      if (content) return content;
+    }
+
+    return null;
   }
 
   private async getFileList(owner: string, repo: string): Promise<string[]> {

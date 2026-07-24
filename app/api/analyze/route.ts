@@ -2,12 +2,14 @@ import { getServerSession } from "next-auth";
 import { z } from "zod";
 import { RepoAnalyzer } from "@/lib/analyzer";
 import { authOptions } from "@/lib/auth";
-import { getDb } from "@/lib/db";
-import { repositories } from "@/lib/db/schema";
+import { upsertRepositoryRecord } from "@/lib/db/repositories";
 import { RateLimitError, ValidationError } from "@/lib/errors";
 import { enrichAnalysisWithGemini } from "@/lib/gemini-analyzer";
+import { createLogger } from "@/lib/logger";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { withErrorHandler } from "@/lib/with-error-handler";
+
+const logger = createLogger({ route: "POST /api/analyze" });
 
 const analyzeSchema = z.object({
   owner: z.string().min(1),
@@ -36,38 +38,37 @@ export const POST = withErrorHandler(async (request: Request) => {
 
   const analyzer = new RepoAnalyzer(session.user.accessToken);
   const analysis = await analyzer.analyze(owner, repo);
+  const context = await analyzer.getAnalysisContext(owner, repo);
 
   // Enrich with Gemini
   const enrichment = await enrichAnalysisWithGemini(
-    (analysis as any).packageJson,
-    (analysis as any).fileTree,
-    (analysis as any).readme,
-    (analysis as any).framework
+    context.packageJson ?? {},
+    context.fileTree.join("\n"),
+    context.readme ?? undefined,
+    analysis.framework
   );
 
   if (enrichment) {
-    (analysis as any).framework = enrichment.framework;
-    (analysis as any).missingEnvVars = [
-      ...new Set([...((analysis as any).missingEnvVars || []), ...enrichment.missingEnvVars]),
-    ];
-    (analysis as any).readinessSummary = enrichment.readinessSummary;
+    analysis.framework = enrichment.framework;
+    analysis.envVarsDetected = Array.from(
+      new Set([...analysis.envVarsDetected, ...enrichment.missingEnvVars])
+    ).sort();
+    analysis.readinessSummary = enrichment.readinessSummary || analysis.readinessSummary;
   }
 
   // Save to DB
-  const db = getDb();
   if (repoId && session.user.id) {
     try {
-      await db.insert(repositories).values({
-        user_id: session.user.id,
-        github_repo_id: repoId,
+      await upsertRepositoryRecord({
+        sessionUser: session.user,
+        githubRepoId: repoId,
         owner,
         name: repo,
-        framework: (analysis as any).framework,
-        risk_score: (analysis as any).deploymentRiskScore,
-        last_analyzed_at: new Date(),
+        framework: analysis.framework,
+        riskScore: analysis.deploymentRiskScore,
       });
-    } catch (_e) {
-      // Silently fail DB insert (analysis still works without DB)
+    } catch (error) {
+      logger.warn("Repository analysis DB write failed", { error, owner, repo, repoId });
     }
   }
 

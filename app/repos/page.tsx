@@ -128,7 +128,7 @@ export default function ReposPage() {
             {filteredRepos.map((repo) => (
               <Link
                 key={repo.id}
-                href={`/repos/${repo.full_name}`}
+                href={`/repos/${repo.full_name}?repoId=${repo.id}`}
                 className="grid gap-4 p-5 transition-colors hover:bg-[color:rgb(36_81_90_/_0.06)] md:grid-cols-[1fr_220px_48px]"
               >
                 <div>

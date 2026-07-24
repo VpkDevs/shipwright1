@@ -1,15 +1,16 @@
 import type { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import GitHubProvider from "next-auth/providers/github";
+import { createLogger } from "@/lib/logger";
 
 const isDev = process.env.NODE_ENV === "development" && process.env.DEV_MODE === "true";
+const logger = createLogger({ module: "auth" });
 
 export const authOptions: NextAuthOptions = {
   providers: [
     GitHubProvider({
       clientId: process.env.GITHUB_ID || "",
       clientSecret: process.env.GITHUB_SECRET || "",
-      allowDangerousEmailAccountLinking: true,
       authorization: {
         params: {
           scope: "repo user",
@@ -39,7 +40,7 @@ export const authOptions: NextAuthOptions = {
       : []),
   ],
   callbacks: {
-    async jwt({ token, account, profile }) {
+    async jwt({ token, account, profile, user }) {
       if (account) {
         token.accessToken = account.access_token;
       }
@@ -47,11 +48,15 @@ export const authOptions: NextAuthOptions = {
         token.profile = profile;
         token.userId = String((profile as { id?: number | string }).id || "");
       }
+      if (user?.id && !token.userId) {
+        token.userId = String(user.id);
+      }
       return token;
     },
     async session({ session, token }) {
       if (session.user) {
-        session.user.accessToken = token.accessToken || process.env.DEV_GITHUB_TOKEN || undefined;
+        session.user.accessToken =
+          token.accessToken || (isDev ? process.env.DEV_GITHUB_TOKEN : undefined);
         session.user.id = token.userId || undefined;
       }
       return session;
@@ -59,13 +64,13 @@ export const authOptions: NextAuthOptions = {
     async signIn({ account, user, profile }) {
       // Allow dev mode users (they have an id but no profile)
       if (user?.id === "dev-user") {
-        return true;
+        return isDev;
       }
       // Require account and profile for GitHub OAuth
       if (!account || !profile) {
-        console.error("SignIn callback: Missing account or profile", {
-          account: !!account,
-          profile: !!profile,
+        logger.error("Sign-in callback missing account or profile", {
+          accountPresent: !!account,
+          profilePresent: !!profile,
         });
         return false;
       }
@@ -74,7 +79,7 @@ export const authOptions: NextAuthOptions = {
   },
   events: {
     async signIn({ user, account, isNewUser }) {
-      console.log("SignIn event:", { userId: user?.id, provider: account?.provider, isNewUser });
+      logger.info("User signed in", { userId: user?.id, provider: account?.provider, isNewUser });
     },
   },
   pages: {

@@ -1,3 +1,4 @@
+import { ZodError } from "zod";
 import { AppError, RateLimitError } from "./errors";
 import { log } from "./logger";
 
@@ -28,6 +29,14 @@ export function withErrorHandler(handler: (req: Request) => Promise<Response>) {
         return new Response(JSON.stringify(responseBody), {
           status: error.statusCode,
           headers,
+        });
+      }
+
+      if (error instanceof ZodError) {
+        log.warn({ issues: error.issues }, "Request validation failed");
+        return new Response(JSON.stringify({ error: "Invalid request parameters" }), {
+          status: 400,
+          headers: { "Content-Type": "application/json" },
         });
       }
 

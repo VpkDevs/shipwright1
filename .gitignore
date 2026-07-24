@@ -15,3 +15,14 @@ pnpm-lock.yaml
 .vscode/
 *.swp
 tsconfig.tsbuildinfo
+
+# appended by publish script
+!.env.example
+out/
+.turbo/
+.cache/
+.venv/
+venv/
+__pycache__/
+.pytest_cache/
+*.pyc

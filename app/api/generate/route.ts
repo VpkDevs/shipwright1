@@ -1,10 +1,8 @@
-import { eq } from "drizzle-orm";
 import { getServerSession } from "next-auth";
 import { z } from "zod";
 import { RepoAnalyzer } from "@/lib/analyzer";
 import { authOptions } from "@/lib/auth";
-import { getDb } from "@/lib/db";
-import { repositories } from "@/lib/db/schema";
+import { upsertRepositoryRecord } from "@/lib/db/repositories";
 import { RateLimitError, ValidationError } from "@/lib/errors";
 import { generateContentWithGemini } from "@/lib/gemini-generator";
 import { generateCiWorkflow } from "@/lib/generators/ci-workflow";
@@ -18,6 +16,7 @@ import {
   generateVercelJsonFile,
 } from "@/lib/generators/vercel-config";
 import { GitHubClient } from "@/lib/github";
+import { createLogger } from "@/lib/logger";
 import { checkRateLimit } from "@/lib/rate-limit";
 import {
   consumeShipCredit,
@@ -26,6 +25,8 @@ import {
   hasActiveProSubscription,
 } from "@/lib/stripe";
 import { withErrorHandler } from "@/lib/with-error-handler";
+
+const logger = createLogger({ route: "POST /api/generate" });
 
 const generateSchema = z.object({
   owner: z.string().min(1),
@@ -76,29 +77,27 @@ export const POST = withErrorHandler(async (request: Request) => {
 
   const analyzer = new RepoAnalyzer(session.user.accessToken);
   const analysis = await analyzer.analyze(owner, repo);
+  const context = await analyzer.getAnalysisContext(owner, repo);
 
-  const db = getDb();
-
-  // Try to load cached analysis from DB
-  let cachedRepo: any = null;
-  if (repoId) {
+  if (repoId && session.user.id) {
     try {
-      const [repo] = await db
-        .select()
-        .from(repositories)
-        .where(eq(repositories.github_repo_id, repoId));
-      cachedRepo = repo;
-    } catch (_e) {
-      // DB lookup failed, continue with defaults
+      await upsertRepositoryRecord({
+        sessionUser: session.user,
+        githubRepoId: repoId,
+        owner,
+        name: repo,
+        framework: analysis.framework,
+        riskScore: analysis.deploymentRiskScore,
+      });
+    } catch (error) {
+      logger.warn("Repository generation DB write failed", { error, owner, repo, repoId });
     }
   }
 
   // Generate with Gemini (with fallback to templates)
-  const framework = cachedRepo?.framework || (analysis as any).framework || "unknown";
-  const deps = (analysis as any).packageJson?.dependencies
-    ? Object.keys((analysis as any).packageJson.dependencies).slice(0, 5)
-    : [];
-  const readinessSummary = cachedRepo?.readinessSummary || "Repository analysis";
+  const framework = analysis.framework || "unknown";
+  const deps = context.dependencies.slice(0, 5);
+  const readinessSummary = analysis.readinessSummary;
 
   const generated = await generateContentWithGemini(repo, owner, framework, deps, readinessSummary);
   const packageJsonScripts = generatePackageJsonScripts(analysis);

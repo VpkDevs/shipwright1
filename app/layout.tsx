@@ -2,6 +2,9 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
+  metadataBase: new URL(
+    process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXTAUTH_URL || "http://localhost:3000"
+  ),
   title: "Shipwright",
   description:
     "Deployment readiness for solo builders with unfinished GitHub repos. Analyze a repo and generate Vercel configs, README files, landing pages, and .env templates as one pull request.",
