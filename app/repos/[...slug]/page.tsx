@@ -144,6 +144,12 @@ export default function RepoPage() {
     if (generated.vercelJson) {
       files.push({ path: "vercel.json", content: generated.vercelJson });
     }
+    if (generated.dockerfile) {
+      files.push({ path: "Dockerfile", content: generated.dockerfile });
+    }
+    if (generated.dockerignore) {
+      files.push({ path: ".dockerignore", content: generated.dockerignore });
+    }
     if (generated.envTemplate) {
       files.push({ path: ".env.example", content: generated.envTemplate });
     }
@@ -442,6 +448,10 @@ function PreviewContent({
     return (
       <div className="space-y-5">
         <ArtifactPreview title="vercel.json" content={generated.vercelJson || "Not applicable"} />
+        <ArtifactPreview
+          title="Dockerfile"
+          content={generated.dockerfile || "Not applicable for this repository."}
+        />
         <ArtifactPreview
           title=".github/workflows/shipwright-deployment-checks.yml"
           content={generated.ciWorkflow || "Not applicable for this repository."}
