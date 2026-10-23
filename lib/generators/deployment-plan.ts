@@ -1,4 +1,5 @@
 import type { DeploymentIssue, RepoAnalysis } from "@/types";
+import { shouldGenerateDockerfile } from "./dockerfile";
 import { getPackageScriptCommand } from "./package-manager";
 
 export function generateDeploymentPlan(
@@ -87,25 +88,36 @@ function formatIssueRows(issues: DeploymentIssue[]): string {
 }
 
 function getHostingNotes(analysis: RepoAnalysis): string {
+  const dockerLines = shouldGenerateDockerfile(analysis)
+    ? [
+        "- A production `Dockerfile` is included in this PR, so any container host (Fly.io, Railway, Render, a VPS) can build and run this app.",
+        "- Container quick start: `docker build -t app .`, then `docker run -p 3000:3000 --env-file .env app` (static sites: `-p 8080:80`).",
+      ]
+    : [];
+
+  let frameworkLines: string[];
+
   if (analysis.framework === "Next.js") {
-    return [
+    frameworkLines = [
       "- Vercel should auto-detect Next.js, but keep `vercel.json` when custom commands are needed.",
       "- Verify auth callback URLs and public environment variables in the preview deployment.",
-    ].join("\n");
-  }
-
-  if (analysis.framework === "React" || analysis.framework === "Vue") {
-    return [
+    ];
+  } else if (analysis.framework === "React" || analysis.framework === "Vue") {
+    frameworkLines = [
       "- Confirm the build output directory before deploying.",
       "- Static hosts usually need a rewrite rule for client-side routes.",
-    ].join("\n");
+    ];
+  } else if (analysis.hasDocker) {
+    frameworkLines = [
+      "- Docker is available, so container platforms can build from the Dockerfile if framework detection is incomplete.",
+    ];
+  } else {
+    frameworkLines = [
+      "- Choose a hosting target, then align install, build, start, and environment variable settings with that platform.",
+    ];
   }
 
-  if (analysis.hasDocker) {
-    return "- Docker is available, so container platforms can build from the Dockerfile if framework detection is incomplete.";
-  }
-
-  return "- Choose a hosting target, then align install, build, start, and environment variable settings with that platform.";
+  return [...dockerLines, ...frameworkLines].join("\n");
 }
 
 function escapeTableCell(value: string): string {

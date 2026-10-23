@@ -9,6 +9,7 @@ import { RateLimitError, ValidationError } from "@/lib/errors";
 import { generateContentWithGemini } from "@/lib/gemini-generator";
 import { generateCiWorkflow } from "@/lib/generators/ci-workflow";
 import { generateDeploymentPlan } from "@/lib/generators/deployment-plan";
+import { generateDockerfile, generateDockerignore } from "@/lib/generators/dockerfile";
 import { generateEnvTemplate } from "@/lib/generators/env-template";
 import { generateLandingPage } from "@/lib/generators/landing";
 import { generateReadme } from "@/lib/generators/readme";
@@ -119,6 +120,8 @@ export const POST = withErrorHandler(async (request: Request) => {
   // Fallback if Gemini fails
   const finalGenerated = {
     vercelJson: generateVercelJsonFile(analysis),
+    dockerfile: generateDockerfile(analysis),
+    dockerignore: generateDockerignore(analysis),
     packageJsonScripts,
     packageJson,
     ciWorkflow: hasPackageJson
