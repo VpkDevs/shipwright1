@@ -8,6 +8,7 @@ Shipwright is a deployment doctor for GitHub repositories. It analyzes what your
 
 - Deployment readiness summaries with blockers, warnings, and recommended fixes
 - Production-ready deployment configurations (Vercel)
+- Production-ready Dockerfiles (+ .dockerignore) for any container platform (Fly.io, Railway, Render, a VPS)
 - `SHIPWRIGHT_DEPLOYMENT_PLAN.md` checklists for reviewers
 - Professional README files
 - Beautiful landing pages

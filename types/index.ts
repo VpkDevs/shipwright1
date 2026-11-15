@@ -30,6 +30,8 @@ export interface RepoAnalysis {
 
 export interface GeneratedContent {
   vercelJson: string;
+  dockerfile: string | null;
+  dockerignore: string | null;
   packageJsonScripts: Record<string, string>;
   packageJson: string | null;
   ciWorkflow: string | null;
